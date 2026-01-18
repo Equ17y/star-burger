@@ -1,5 +1,9 @@
+import json
 from django.http import JsonResponse
 from django.templatetags.static import static
+from django.db import transaction
+from .models import Order, OrderItem, Product
+
 
 
 from .models import Product
@@ -58,5 +62,41 @@ def product_list_api(request):
 
 
 def register_order(request):
-    # TODO это лишь заглушка
-    return JsonResponse({})
+    if request.method == 'POST':
+        body = request.body.decode('utf-8')
+        data = json.loads(body)
+        print("Получен заказ:", data)
+        # Получаем продукты
+        product_ids = [item['product'] for item in data['products']]
+        products = {p.id: p for p in Product.objects.filter(id__in=product_ids)}
+
+        if len(products) != len(product_ids):
+            return JsonResponse({'error': 'Some products not found'}, status=400)
+
+        try:
+            with transaction.atomic():
+                order = Order.objects.create(
+                    firstname=data['firstname'],
+                    lastname=data['lastname'],
+                    phonenumber=data['phonenumber'],
+                    address=data['address']
+                )
+                items = []
+                for item in data['products']:
+                    product = products[item['product']]
+                    items.append(OrderItem(
+                        order=order,
+                        product=product,
+                        quantity=item['quantity'],
+                        price=product.price
+                    ))
+                OrderItem.objects.bulk_create(items)
+
+            return JsonResponse({'status': 'ok'})
+        except Exception as e:
+            print("Ошибка:", e)
+            return JsonResponse({'error': 'Failed to save order'}, status=500)
+
+    return JsonResponse({'error': 'Only POST allowed'}, status=405)
+
+# return JsonResponse({})
