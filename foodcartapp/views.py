@@ -1,17 +1,13 @@
-import json
-from django.http import JsonResponse
-from django.templatetags.static import static
 from django.db import transaction
 from .models import Order, OrderItem, Product
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.templatetags.static import static
 
 
-
-from .models import Product
-
-
+@api_view(['GET'])
 def banners_list_api(request):
-    # FIXME move data to db?
-    return JsonResponse([
+    return Response([
         {
             'title': 'Burger',
             'src': static('burger.jpg'),
@@ -27,12 +23,10 @@ def banners_list_api(request):
             'src': static('tasty.jpg'),
             'text': 'Food is incomplete without a tasty dessert',
         }
-    ], safe=False, json_dumps_params={
-        'ensure_ascii': False,
-        'indent': 4,
-    })
+    ])
 
 
+@api_view(['GET'])
 def product_list_api(request):
     products = Product.objects.select_related('category').available()
 
@@ -49,54 +43,39 @@ def product_list_api(request):
                 'name': product.category.name,
             } if product.category else None,
             'image': product.image.url,
-            'restaurant': {
-                'id': product.id,
-                'name': product.name,
-            }
         }
         dumped_products.append(dumped_product)
-    return JsonResponse(dumped_products, safe=False, json_dumps_params={
-        'ensure_ascii': False,
-        'indent': 4,
-    })
+    return Response(dumped_products)
 
-
+@api_view(['POST'])
 def register_order(request):
-    if request.method == 'POST':
-        body = request.body.decode('utf-8')
-        data = json.loads(body)
-        print("Получен заказ:", data)
-        # Получаем продукты
-        product_ids = [item['product'] for item in data['products']]
-        products = {p.id: p for p in Product.objects.filter(id__in=product_ids)}
+    data = request.data
+    product_ids = [item['product'] for item in data['products']]
+    products = {p.id: p for p in Product.objects.filter(id__in=product_ids)}
 
-        if len(products) != len(product_ids):
-            return JsonResponse({'error': 'Some products not found'}, status=400)
+    if len(products) != len(product_ids):
+        return Response({'error': 'Some products not found'}, status=400)
 
-        try:
-            with transaction.atomic():
-                order = Order.objects.create(
-                    firstname=data['firstname'],
-                    lastname=data['lastname'],
-                    phonenumber=data['phonenumber'],
-                    address=data['address']
-                )
-                items = []
-                for item in data['products']:
-                    product = products[item['product']]
-                    items.append(OrderItem(
-                        order=order,
-                        product=product,
-                        quantity=item['quantity'],
-                        price=product.price
-                    ))
-                OrderItem.objects.bulk_create(items)
+    try:
+        with transaction.atomic():
+            order = Order.objects.create(
+                firstname=data['firstname'],
+                lastname=data['lastname'],
+                phonenumber=data['phonenumber'],
+                address=data['address']
+            )
+            items = []
+            for item in data['products']:
+                product = products[item['product']]
+                items.append(OrderItem(
+                    order=order,
+                    product=product,
+                    quantity=item['quantity'],
+                    price=product.price
+                ))
+            OrderItem.objects.bulk_create(items)
 
-            return JsonResponse({'status': 'ok'})
-        except Exception as e:
-            print("Ошибка:", e)
-            return JsonResponse({'error': 'Failed to save order'}, status=500)
-
-    return JsonResponse({'error': 'Only POST allowed'}, status=405)
-
-# return JsonResponse({})
+        return Response({'status': 'ok'})
+    except Exception as e:
+        print("Ошибка:", e)
+        return Response({'error': 'Failed to save order'}, status=500)
