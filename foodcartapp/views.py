@@ -53,15 +53,43 @@ def register_order(request):
     errors = {}
 
     # === Проверка обязательных полей ===
-    required_fields = ['firstname', 'lastname', 'phonenumber', 'address', 'products']
-    for field in required_fields:
+    for field in ['firstname', 'lastname', 'address']:
         if field not in data:
             errors[field] = 'Обязательное поле'
-        elif isinstance(data[field], str) and not data[field].strip():
-            errors[field] = 'Обязательное поле'
+        else:     
+            value = data.get(field)
+            if value is None:
+                errors[field] = 'Это поле не может быть пустым'
+            elif not isinstance(value, str):
+                errors[field] = 'Not a valid string'
+            elif not value.strip():
+                errors[field] = 'Это поле не может быть пустым'
+            
+    # Проверка phonenumber
+    if 'phonenumber' not in data:
+        errors['phonenumber'] = 'Обязательное поле'
+    else:
+        phone = data['phonenumber']
+        if phone is None:
+            errors['phonenumber'] = 'Это поле не может быть пустым'
+        elif not isinstance(phone, str):
+            errors['phonenumber'] = 'Not a valid string'
+        elif not phone.strip():
+            errors['phonenumber'] = 'Это поле не может быть пустым'
+        else:
+            # Валидация через PhoneNumberField
+            from phonenumber_field.phonenumber import PhoneNumber
+            try:
+                parsed = PhoneNumber.from_string(phone_number=phone, region='RU')
+                if not parsed.is_valid():
+                    errors['phonenumber'] = 'Введен некорректный номер телефона'
+            except Exception:
+                errors['phonenumber'] = 'Введен некорректный номер телефона'        
 
     # === Валидация products ===
-    if 'products' in data:
+    if 'products' not in data:
+        errors['products'] = 'Обязательное поле'
+    else:
         products_data = data['products']
 
         if products_data is None:
@@ -100,10 +128,11 @@ def register_order(request):
 
     missing_ids = set(product_ids) - found_ids
     if missing_ids:
+        first_missing = sorted(missing_ids)[0]
         return Response(
-            {'products': f'Продукты не найдены: {sorted(missing_ids)}'},
+            {'products': f'Недопустимый первичный ключ "{first_missing}"'},
             status=400
-        )
+)
 
     # === Сохранение заказа ===
     try:
