@@ -3,6 +3,35 @@ from .models import Order, OrderItem, Product
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.templatetags.static import static
+from rest_framework import serializers
+from phonenumber_field.serializerfields import PhoneNumberField
+
+
+class ProductOrderSerializer(serializers.Serializer):
+    product = serializers.IntegerField(min_value=1)
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class OrderSerializer(serializers.Serializer):
+    firstname = serializers.CharField(max_length=50)
+    lastname = serializers.CharField(max_length=50)
+    phonenumber = PhoneNumberField(region='RU')
+    address = serializers.CharField(max_length=200)
+    products = ProductOrderSerializer(
+        many=True, 
+        allow_empty=False,
+        error_messages={'empty': 'Этот список не может быть пустым'}
+    )
+
+    def validate_products(self, value):
+        product_ids = [item['product'] for item in value]
+        existing_ids = set(Product.objects.filter(id__in=product_ids).values_list('id', flat=True))
+        missing_ids = set(product_ids) - existing_ids
+        if missing_ids:
+            raise serializers.ValidationError(
+                f'Недопустимый первичный ключ "{sorted(missing_ids)[0]}"'
+            )
+        return value
 
 
 @api_view(['GET'])
@@ -49,113 +78,26 @@ def product_list_api(request):
 
 @api_view(['POST'])
 def register_order(request):
-    data = request.data
-    errors = {}
-
-    # === Проверка обязательных полей ===
-    for field in ['firstname', 'lastname', 'address']:
-        if field not in data:
-            errors[field] = 'Обязательное поле'
-        else:     
-            value = data.get(field)
-            if value is None:
-                errors[field] = 'Это поле не может быть пустым'
-            elif not isinstance(value, str):
-                errors[field] = 'Not a valid string'
-            elif not value.strip():
-                errors[field] = 'Это поле не может быть пустым'
-            
-    # Проверка phonenumber
-    if 'phonenumber' not in data:
-        errors['phonenumber'] = 'Обязательное поле'
-    else:
-        phone = data['phonenumber']
-        if phone is None:
-            errors['phonenumber'] = 'Это поле не может быть пустым'
-        elif not isinstance(phone, str):
-            errors['phonenumber'] = 'Not a valid string'
-        elif not phone.strip():
-            errors['phonenumber'] = 'Это поле не может быть пустым'
-        else:
-            # Валидация через PhoneNumberField
-            from phonenumber_field.phonenumber import PhoneNumber
-            try:
-                parsed = PhoneNumber.from_string(phone_number=phone, region='RU')
-                if not parsed.is_valid():
-                    errors['phonenumber'] = 'Введен некорректный номер телефона'
-            except Exception:
-                errors['phonenumber'] = 'Введен некорректный номер телефона'        
-
-    # === Валидация products ===
-    if 'products' not in data:
-        errors['products'] = 'Обязательное поле'
-    else:
-        products_data = data['products']
-
-        if products_data is None:
-            errors['products'] = 'Это поле не может быть пустым'
-        elif not isinstance(products_data, list):
-            errors['products'] = f'Ожидался list со значениями, но был получен "{type(products_data).__name__}"'
-        elif len(products_data) == 0:
-            errors['products'] = 'Этот список не может быть пустым'
-        else:
-            # Проверяем каждый элемент списка
-            for idx, item in enumerate(products_data):
-                if not isinstance(item, dict):
-                    errors[f'products[{idx}]'] = 'Должен быть объектом (словарём)'
-                    continue
-
-                # Проверка product
-                if 'product' not in item:
-                    errors[f'products[{idx}].product'] = 'Обязательное поле'
-                elif not isinstance(item['product'], int):
-                    errors[f'products[{idx}].product'] = 'Должен быть числом'
-
-                # Проверка quantity
-                if 'quantity' not in item:
-                    errors[f'products[{idx}].quantity'] = 'Обязательное поле'
-                elif not isinstance(item['quantity'], int) or item['quantity'] <= 0:
-                    errors[f'products[{idx}].quantity'] = 'Должно быть положительным числом'
-
-    # === Если есть ошибки — возвращаем их ===
-    if errors:
-        return Response(errors, status=400)
-
-    # === Проверка существования продуктов ===
-    product_ids = [item['product'] for item in data['products']]
-    existing_products = Product.objects.filter(id__in=product_ids)
-    found_ids = {p.id for p in existing_products}
-
-    missing_ids = set(product_ids) - found_ids
-    if missing_ids:
-        first_missing = sorted(missing_ids)[0]
-        return Response(
-            {'products': f'Недопустимый первичный ключ "{first_missing}"'},
-            status=400
-)
-
-    # === Сохранение заказа ===
-    try:
+    serializer = OrderSerializer(data=request.data)
+    if serializer.is_valid():
         with transaction.atomic():
             order = Order.objects.create(
-                firstname=data['firstname'].strip(),
-                lastname=data['lastname'].strip(),
-                phonenumber=data['phonenumber'],
-                address=data['address'].strip()
+                firstname=serializer.validated_data['firstname'],
+                lastname=serializer.validated_data['lastname'],
+                phonenumber=serializer.validated_data['phonenumber'],
+                address=serializer.validated_data['address']
             )
             items = []
-            product_map = {p.id: p for p in existing_products}
-            for item in data['products']:
-                product = product_map[item['product']]
+            product_map = {p.id: p for p in Product.objects.filter(
+                id__in=[item['product'] for item in serializer.validated_data['products']]
+            )}
+            for item in serializer.validated_data['products']:
                 items.append(OrderItem(
                     order=order,
-                    product=product,
+                    product=product_map[item['product']],
                     quantity=item['quantity'],
-                    price=product.price
+                    price=product_map[item['product']].price
                 ))
             OrderItem.objects.bulk_create(items)
-
         return Response({'status': 'ok'})
-    except Exception as e:
-        print("Ошибка при сохранении:", e)
-        return Response({'error': 'Не удалось сохранить заказ'}, status=500)
+    return Response(serializer.errors, status=400)
