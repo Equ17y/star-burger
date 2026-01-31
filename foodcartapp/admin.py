@@ -9,6 +9,8 @@ from .models import Restaurant
 from .models import RestaurantMenuItem
 from .models import Order
 from .models import OrderItem
+from django.http import HttpResponseRedirect
+from django.utils.http import url_has_allowed_host_and_scheme
 
 class RestaurantMenuItemInline(admin.TabularInline):
     model = RestaurantMenuItem
@@ -37,7 +39,6 @@ class OrderItemInline(admin.TabularInline):
         'quantity',
         'price'
     ]
-    # readonly_fields = ['price']
     
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         field = super().formfield_for_dbfield(db_field, request, **kwargs)
@@ -60,7 +61,20 @@ class OrderAdmin(admin.ModelAdmin):
         'lastname', 
         'phonenumber', 
         'address'
-    ]        
+    ]
+    
+    
+    def response_change(self, request, obj):
+        next_url = request.GET.get('next')
+        
+        if next_url and url_has_allowed_host_and_scheme(
+            url=next_url,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure()
+        ):
+            return HttpResponseRedirect(next_url)
+        
+        return super().response_change(request, obj)       
 
 
 @admin.register(Product)
