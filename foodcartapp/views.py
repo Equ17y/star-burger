@@ -13,6 +13,7 @@ class ProductOrderSerializer(serializers.Serializer):
 
 
 class OrderSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
     firstname = serializers.CharField(max_length=50)
     lastname = serializers.CharField(max_length=50)
     phonenumber = PhoneNumberField(region='RU')
@@ -20,6 +21,7 @@ class OrderSerializer(serializers.Serializer):
     products = ProductOrderSerializer(
         many=True, 
         allow_empty=False,
+        write_only=True,
         error_messages={'empty': 'Этот список не может быть пустым'}
     )
 
@@ -99,5 +101,6 @@ def register_order(request):
                     price=product_map[item['product']].price
                 ))
             OrderItem.objects.bulk_create(items)
-        return Response({'status': 'ok'})
+        response_serializer = OrderSerializer(order)    
+        return Response(response_serializer.data, status=201)
     return Response(serializer.errors, status=400)
