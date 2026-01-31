@@ -1,12 +1,23 @@
+from django.db.models import Sum, F
 from django.db import models
 from django.core.validators import MinValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
+
+
+class OrderQuerySet(models.QuerySet):
+    def with_total_price(self):
+        return self.annotate(
+            total_price=Sum(F('items__price') * F('items__quantity'))
+        )
+
 
 class Order(models.Model):
     address = models.CharField('Адрес доставки', max_length=200)
     firstname = models.CharField('Имя', max_length=50)
     lastname = models.CharField('Фамилия', max_length=50)
     phonenumber = PhoneNumberField('Мобильный номер', db_index=True)
+    
+    objects = OrderQuerySet.as_manager()
     
     class Meta:
         verbose_name = 'заказ'
