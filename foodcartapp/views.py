@@ -83,6 +83,10 @@ def register_order(request):
     serializer = OrderSerializer(data=request.data)
     if serializer.is_valid():
         with transaction.atomic():
+            
+            product_ids = [item['product'] for item in serializer.validated_data['products']]
+            product_map = {p.id: p for p in Product.objects.filter(id__in=product_ids)}
+            
             order = Order.objects.create(
                 firstname=serializer.validated_data['firstname'],
                 lastname=serializer.validated_data['lastname'],
@@ -90,15 +94,13 @@ def register_order(request):
                 address=serializer.validated_data['address']
             )
             items = []
-            product_map = {p.id: p for p in Product.objects.filter(
-                id__in=[item['product'] for item in serializer.validated_data['products']]
-            )}
             for item in serializer.validated_data['products']:
+                product = product_map[item['product']]
                 items.append(OrderItem(
                     order=order,
-                    product=product_map[item['product']],
+                    product=product,
                     quantity=item['quantity'],
-                    price=product_map[item['product']].price
+                    price=product.price
                 ))
             OrderItem.objects.bulk_create(items)
         response_serializer = OrderSerializer(order)    

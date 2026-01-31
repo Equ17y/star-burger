@@ -34,8 +34,16 @@ class OrderItemInline(admin.TabularInline):
     extra = 0
     fields = [
         'product', 
-        'quantity'
+        'quantity',
+        'price'
     ]
+    # readonly_fields = ['price']
+    
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        field = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if db_field.name == 'price':
+            field.widget.attrs['min'] = '0'
+        return field
     
     
 @admin.register(Order)
