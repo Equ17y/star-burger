@@ -103,6 +103,9 @@ def register_order(request):
                     price=product.price
                 ))
             OrderItem.objects.bulk_create(items)
+            
+            # 0 / 0  # ← если раскомментировать — всё откатится
+             
         response_serializer = OrderSerializer(order)    
         return Response(response_serializer.data, status=201)
     return Response(serializer.errors, status=400)
