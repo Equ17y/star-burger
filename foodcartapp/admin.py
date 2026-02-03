@@ -56,7 +56,8 @@ class OrderAdmin(admin.ModelAdmin):
         'lastname', 
         'phonenumber', 
         'address',
-        'status'
+        'status',
+        'registrated_at'
     ]
     search_fields = [
         'firstname', 
@@ -64,6 +65,20 @@ class OrderAdmin(admin.ModelAdmin):
         'phonenumber', 
         'address'
     ]
+    readonly_fields = ['registrated_at']
+    
+    fieldsets = (
+        ('Клиент', {
+            'fields': ('firstname', 'lastname', 'phonenumber', 'address')
+        }),
+        ('Заказ', {
+            'fields': ('status', 'comment')
+        }),
+        ('Временные метки', {
+            # 👇 registrated_at — ПЕРВЫМ!
+            'fields': ('registrated_at', 'called_at', 'delivered_at'),
+        }),
+    )
     
     
     def response_change(self, request, obj):

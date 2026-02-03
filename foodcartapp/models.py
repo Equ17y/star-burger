@@ -26,6 +26,10 @@ class Order(models.Model):
     phonenumber = PhoneNumberField('Мобильный номер', db_index=True)
     comment = models.TextField('Комментарий', blank=True)
     
+    registrated_at = models.DateTimeField('Дата создания заказа', auto_now_add=True, db_index=True)
+    called_at = models.DateTimeField('Дата звонка', blank=True, null=True)
+    delivered_at = models.DateTimeField('Дата доставки', blank=True, null=True)
+    
     objects = OrderQuerySet.as_manager()
     
     status = models.CharField(
