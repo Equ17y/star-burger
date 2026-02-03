@@ -51,10 +51,12 @@ class OrderItemInline(admin.TabularInline):
 class OrderAdmin(admin.ModelAdmin):
     inlines = [OrderItemInline]
     list_display = [
+        'id',
         'firstname', 
         'lastname', 
         'phonenumber', 
-        'address'
+        'address',
+        'status'
     ]
     search_fields = [
         'firstname', 

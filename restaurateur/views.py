@@ -92,16 +92,16 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.with_total_price().prefetch_related(
+    orders = Order.objects.exclude(status='COMPLETED').with_total_price().prefetch_related(
         models.Prefetch(
             'items',
             queryset=OrderItem.objects.select_related('product')
         )
-    ).all()
+    )
     
-    print(">>> DEBUG: Количество заказов =", len(orders))
-    for o in orders:
-        print(f"    Заказ {o.id}: {o.firstname} {o.lastname}")
+    # print(">>> DEBUG: Количество заказов =", len(orders))
+    # for o in orders:
+    #     print(f"    Заказ {o.id}: {o.firstname} {o.lastname}")
     
     
     return render(request, template_name='order_items.html', context={

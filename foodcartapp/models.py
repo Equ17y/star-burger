@@ -9,6 +9,14 @@ class OrderQuerySet(models.QuerySet):
         return self.annotate(
             total_price=Sum(F('items__price') * F('items__quantity'))
         )
+        
+        
+ORDER_STATUSES = [
+    ('UNPROCESSED', 'Необработанный'),
+    ('PROCESSING', 'Готовится'),
+    ('DELIVERING', 'Доставляется'),
+    ('COMPLETED', 'Выполнен'),
+]        
 
 
 class Order(models.Model):
@@ -19,9 +27,22 @@ class Order(models.Model):
     
     objects = OrderQuerySet.as_manager()
     
+    status = models.CharField(
+        'Статус',
+        max_length=20,
+        choices=ORDER_STATUSES,
+        default='UNPROCESSED',
+        db_index=True 
+        
+    )
+    
     class Meta:
         verbose_name = 'заказ'
         verbose_name_plural = 'заказы'
+        
+    
+    def __str__(self):
+        return f"{self.firstname} {self.lastname}, {self.phonenumber}"   
 
 
 class Restaurant(models.Model):
