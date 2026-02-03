@@ -24,6 +24,7 @@ class Order(models.Model):
     firstname = models.CharField('Имя', max_length=50)
     lastname = models.CharField('Фамилия', max_length=50)
     phonenumber = PhoneNumberField('Мобильный номер', db_index=True)
+    comment = models.TextField('Комментарий', blank=True)
     
     objects = OrderQuerySet.as_manager()
     
