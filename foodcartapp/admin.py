@@ -65,14 +65,20 @@ class OrderAdmin(admin.ModelAdmin):
         'phonenumber', 
         'address'
     ]
-    readonly_fields = ['registrated_at']
+    list_filter = [
+        'status', 
+        'payment_method'
+    ]
+    readonly_fields = [
+        'registrated_at'
+    ]
     
     fieldsets = (
         ('Клиент', {
             'fields': ('firstname', 'lastname', 'phonenumber', 'address')
         }),
         ('Заказ', {
-            'fields': ('status', 'comment')
+            'fields': ('status','payment_method', 'comment')
         }),
         ('Временные метки', {
             # 👇 registrated_at — ПЕРВЫМ!

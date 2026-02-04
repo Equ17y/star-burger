@@ -19,12 +19,26 @@ ORDER_STATUSES = [
 ]        
 
 
+PAYMENT_METHODS = [
+    ('ONLINE', 'Электронно'),
+    ('CASH', 'Наличностью'),
+]
+
+
 class Order(models.Model):
     address = models.CharField('Адрес доставки', max_length=200)
     firstname = models.CharField('Имя', max_length=50)
     lastname = models.CharField('Фамилия', max_length=50)
     phonenumber = PhoneNumberField('Мобильный номер', db_index=True)
     comment = models.TextField('Комментарий', blank=True)
+    
+    payment_method = models.CharField(
+        'Способ оплаты',
+        max_length=10,
+        choices=PAYMENT_METHODS,
+        default='ONLINE',
+        db_index=True
+    )
     
     registrated_at = models.DateTimeField('Дата создания заказа', auto_now_add=True, db_index=True)
     called_at = models.DateTimeField('Дата звонка', blank=True, null=True)
