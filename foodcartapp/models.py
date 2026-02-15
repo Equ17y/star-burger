@@ -4,6 +4,8 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
 from geocoding.utils import fetch_coordinates, calculate_distance
+from geocoding.models import Location
+
 
 class OrderQuerySet(models.QuerySet):
     def with_total_price(self):
@@ -12,12 +14,7 @@ class OrderQuerySet(models.QuerySet):
         )
         
     def with_available_restaurants(self):
-        
-        @lru_cache(maxsize=None)
-        def get_cached_coords(address):
-            if not address:
-                return None
-            return fetch_coordinates(address)
+        from .models import RestaurantMenuItem, Restaurant 
         
         menu_items = RestaurantMenuItem.objects.filter(availability=True).select_related('restaurant')
         
@@ -29,14 +26,34 @@ class OrderQuerySet(models.QuerySet):
         for restaurant_ids in product_to_restaurants.values():
             all_restaurant_ids.update(restaurant_ids)
             
-        restaurants_dict = {
-            r.id: r for r in Restaurant.objects.filter(id__in=all_restaurant_ids)
-        }    
+        restaurants = Restaurant.objects.filter(id__in=all_restaurant_ids)
+        restaurants_dict = {r.id: r for r in restaurants}
         
         orders = list(self.prefetch_related('items'))
+        
+        addresses = set()
         for order in orders:
-            product_ids = {item.product_id for item in order.items.all()}
-            
+            if order.address:
+                addresses.add(order.address)
+        for restaurant in restaurants:
+            if restaurant.address:
+                addresses.add(restaurant.address)
+        
+        locations = Location.objects.filter(address__in=addresses)
+        coords_cache = {}
+        for loc in locations:
+            if loc.lat is not None and loc.lon is not None:
+                coords_cache[loc.address] = (loc.lat, loc.lon)
+                
+        missing_addresses = addresses - set(coords_cache.keys())
+        for address in missing_addresses:
+            coords = fetch_coordinates(address)
+            if coords:
+                coords_cache[address] = coords                
+        
+        for order in orders:
+            product_ids = {item.product_id for item in order.items.all()}    
+                        
             if not product_ids:
                 order.available_restaurants = []
                 continue
@@ -55,7 +72,7 @@ class OrderQuerySet(models.QuerySet):
                 order.available_restaurants = []
                 continue
             
-            order_coords = get_cached_coords(order.address)
+            order_coords = coords_cache.get(order.address)
             
             restaurants_with_distance = []
             for rid in common_restaurant_ids:
@@ -63,7 +80,7 @@ class OrderQuerySet(models.QuerySet):
                 if not restaurant:
                     continue
                 
-                restaurant_coords = get_cached_coords(restaurant.address)
+                restaurant_coords = coords_cache.get(restaurant.address)
                 distance = calculate_distance(order_coords, restaurant_coords)
                 
                 restaurants_with_distance.append({
