@@ -37,23 +37,25 @@
         <td>{{ item.comment|default:"" }}</td>
         <td>
           {% if item.status == 'UNPROCESSED' %}
-            {% if item.available_restaurants %}
-              <details>
-                <summary>Может быть приготовлен ресторанами:</summary>
-                <ul>
-                  {% for restaurant in item.available_restaurants %}
-                    <li>
-                      {{ restaurant.restaurant.name }}
-                      {% if restaurant.distance %}
-                        ({{ restaurant.distance|floatformat:"1" }} км)
-                      {% endif %}
-                    </li>
-                  {% endfor %}
-                </ul>
-              </details>
-            {% else %}
-              <span>Ошибка определения координат</span>
-            {% endif %}
+              {% if item.coords_error %}
+                <span>Адрес не найден! Проверьте корректность адреса</span>
+              {% elif item.available_restaurants %}
+                <details>
+                  <summary>Может быть приготовлен ресторанами:</summary>
+                  <ul>
+                    {% for restaurant in item.available_restaurants %}
+                      <li>
+                        {{ restaurant.restaurant.name }}
+                        {% if restaurant.distance %}
+                          ({{ restaurant.distance|floatformat:"1" }} км)
+                        {% endif %}
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </details>
+              {% else %}
+                <span>Нет доступных ресторанов для всех продуктов заказа</span>
+              {% endif %}
           {% else %}
             {% if item.restaurant %}
               Готовит {{ item.restaurant.name }}
@@ -62,7 +64,7 @@
             {% endif %}
           {% endif %}
         </td>
-        <td>
+        <td>  
           <a href="{% url 'admin:foodcartapp_order_change' item.id %}?next={{ request.get_full_path|urlencode }}">
             Редактировать
           </a>

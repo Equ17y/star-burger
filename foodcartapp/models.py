@@ -49,8 +49,12 @@ class OrderQuerySet(models.QuerySet):
         for address in missing_addresses:
             coords = fetch_coordinates(address)
             if coords:
-                coords_cache[address] = coords                
-        
+                coords_cache[address] = coords
+                Location.objects.get_or_create(
+                    address=address,
+                    defaults={'lat': coords[0], 'lon': coords[1]}
+                )                
+        orders_with_coords_error = []
         for order in orders:
             product_ids = {item.product_id for item in order.items.all()}    
                         
@@ -74,24 +78,34 @@ class OrderQuerySet(models.QuerySet):
             
             order_coords = coords_cache.get(order.address)
             
+            if order.address and order_coords is None:
+                order.coords_error = True
+                orders_with_coords_error.append(order.id)
+                order.available_restaurants = []
+            
             restaurants_with_distance = []
-            for restaurant_id in common_restaurant_ids:
-                restaurant = restaurants_dict.get(restaurant_id)
-                if not restaurant:
-                    continue
+            
+            if order_coords:
+                for restaurant_id in common_restaurant_ids:
+                    restaurant = restaurants_dict.get(restaurant_id)
+                    if not restaurant:
+                        continue
                 
-                restaurant_coords = coords_cache.get(restaurant.address)
-                distance = calculate_distance(order_coords, restaurant_coords)
-                
-                restaurants_with_distance.append({
-                    'restaurant': restaurant,
-                    'distance': distance
-                })
+                    restaurant_coords = coords_cache.get(restaurant.address)
+                    distance = calculate_distance(order_coords, restaurant_coords)
+                    
+                    restaurants_with_distance.append({
+                        'restaurant': restaurant,
+                        'distance': distance
+                    })
                 
             order.available_restaurants = sorted(
                 restaurants_with_distance,
                 key=lambda x: x['distance'] or float('inf')
             )
+            
+        if orders_with_coords_error:
+            self.model.objects.filter(id__in=orders_with_coords_error).update(coords_error=True)
         
         return orders 
         
@@ -145,14 +159,19 @@ class Order(models.Model):
         max_length=20,
         choices=ORDER_STATUSES,
         default='UNPROCESSED',
-        db_index=True 
-        
+        db_index=True  
     )
+    
+    coords_error = models.BooleanField(
+        'Ошибка координат',
+        default=False,
+        help_text='Адрес не найден геокодером'
+    ) 
     
     class Meta:
         verbose_name = 'заказ'
         verbose_name_plural = 'заказы'
-        
+                 
     
     def __str__(self):
         return f"{self.firstname} {self.lastname}, {self.phonenumber}"   
