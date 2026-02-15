@@ -59,8 +59,8 @@ class OrderQuerySet(models.QuerySet):
                 continue
             
             common_restaurant_ids = None
-            for pid in product_ids:
-                restaurant_ids = product_to_restaurants.get(pid, set())
+            for product_id in product_ids:
+                restaurant_ids = product_to_restaurants.get(product_id, set())
                 if common_restaurant_ids is None:
                     common_restaurant_ids = restaurant_ids.copy()
                 else:
@@ -75,8 +75,8 @@ class OrderQuerySet(models.QuerySet):
             order_coords = coords_cache.get(order.address)
             
             restaurants_with_distance = []
-            for rid in common_restaurant_ids:
-                restaurant = restaurants_dict.get(rid)
+            for restaurant_id in common_restaurant_ids:
+                restaurant = restaurants_dict.get(restaurant_id)
                 if not restaurant:
                     continue
                 
