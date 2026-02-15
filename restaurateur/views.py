@@ -115,11 +115,11 @@ def view_orders(request):
             id__in=unprocessed_ids
         ).with_available_restaurants()
         
-        restaurant_dict = {order.id: order for order in orders_with_restaurants}
+        orders_by_id = {order.id: order for order in orders_with_restaurants}
         
         for i, order in enumerate(unprocessed_orders):
-            if order.id in restaurant_dict:
-                unprocessed_orders[i] = restaurant_dict[order.id]
+            if order.id in orders_by_id:
+                unprocessed_orders[i] = orders_by_id[order.id]
     
     all_orders = unprocessed_orders + other_orders
     
