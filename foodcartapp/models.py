@@ -116,7 +116,6 @@ class Order(models.Model):
         'Способ оплаты',
         max_length=10,
         choices=PAYMENT_METHODS,
-        default='ONLINE',
         db_index=True
     )
     
