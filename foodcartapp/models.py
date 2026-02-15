@@ -121,8 +121,8 @@ class Order(models.Model):
     )
     
     registrated_at = models.DateTimeField('Дата создания заказа', auto_now_add=True, db_index=True)
-    called_at = models.DateTimeField('Дата звонка', blank=True, null=True)
-    delivered_at = models.DateTimeField('Дата доставки', blank=True, null=True)
+    called_at = models.DateTimeField('Дата звонка', blank=True, null=True, db_index=True)
+    delivered_at = models.DateTimeField('Дата доставки', blank=True, null=True, db_index=True)
     
     objects = OrderQuerySet.as_manager()
     
