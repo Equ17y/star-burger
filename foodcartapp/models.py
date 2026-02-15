@@ -3,7 +3,7 @@ from django.db.models import Sum, F
 from django.db import models
 from django.core.validators import MinValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
-
+from geocoding.utils import fetch_coordinates, calculate_distance
 
 class OrderQuerySet(models.QuerySet):
     def with_total_price(self):
@@ -12,8 +12,6 @@ class OrderQuerySet(models.QuerySet):
         )
         
     def with_available_restaurants(self):
-        from .models import RestaurantMenuItem, Restaurant
-        from geocoding.utils import fetch_coordinates, calculate_distance
         
         @lru_cache(maxsize=None)
         def get_cached_coords(address):
