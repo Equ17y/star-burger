@@ -12,16 +12,22 @@ class OrderQuerySet(models.QuerySet):
         
     def with_available_restaurants(self):
         from .models import RestaurantMenuItem, Restaurant
+        from .utils import fetch_coordinates, calculate_distance
         
-        # Получаем все доступные пункты меню
-        menu_items = RestaurantMenuItem.objects.filter(availability=True)
+        menu_items = RestaurantMenuItem.objects.filter(availability=True).select_related('restaurant')
         
-        # Создаём словарь: product_id -> set(restaurant_ids)
         product_to_restaurants = {}
         for item in menu_items:
             product_to_restaurants.setdefault(item.product_id, set()).add(item.restaurant_id)
         
-        # Обрабатываем каждый заказ
+        all_restaurant_ids = set()
+        for restaurant_ids in product_to_restaurants.values():
+            all_restaurant_ids.update(restaurant_ids)
+            
+        restaurants_dict = {
+            r.id: r for r in Restaurant.objects.filter(id__in=all_restaurant_ids)
+        }    
+        
         orders = list(self.prefetch_related('items'))
         for order in orders:
             product_ids = {item.product_id for item in order.items.all()}
@@ -30,21 +36,40 @@ class OrderQuerySet(models.QuerySet):
                 order.available_restaurants = []
                 continue
             
-            # Находим пересечение ресторанов для всех продуктов заказа
-            available_restaurant_ids = None
-            for product_id in product_ids:
-                restaurant_ids = product_to_restaurants.get(product_id, set())
-                if available_restaurant_ids is None:
-                    available_restaurant_ids = restaurant_ids.copy()
+            common_restaurant_ids = None
+            for pid in product_ids:
+                restaurant_ids = product_to_restaurants.get(pid, set())
+                if common_restaurant_ids is None:
+                    common_restaurant_ids = restaurant_ids.copy()
                 else:
-                    available_restaurant_ids &= restaurant_ids
-                if not available_restaurant_ids:
+                    common_restaurant_ids &= restaurant_ids
+                if not common_restaurant_ids:
                     break
+                
+            if not common_restaurant_ids:
+                order.available_restaurants = []
+                continue
             
-            # Получаем объекты ресторанов
-            order.available_restaurants = list(
-                Restaurant.objects.filter(id__in=available_restaurant_ids)
-            ) if available_restaurant_ids else []
+            order_coords = fetch_coordinates(order.address)
+            
+            restaurants_with_distance = []
+            for rid in common_restaurant_ids:
+                restaurant = restaurants_dict.get(rid)
+                if not restaurant:
+                    continue
+                
+                restaurant_coords = fetch_coordinates(restaurant.address)
+                distance = calculate_distance(order_coords, restaurant_coords)
+                
+                restaurants_with_distance.append({
+                    'restaurant': restaurant,
+                    'distance': distance
+                })
+                
+            order.available_restaurants = sorted(
+                restaurants_with_distance,
+                key=lambda x: x['distance'] or float('inf')
+            )
         
         return orders 
         
