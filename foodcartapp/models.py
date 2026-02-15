@@ -1,3 +1,4 @@
+from functools import lru_cache
 from django.db.models import Sum, F
 from django.db import models
 from django.core.validators import MinValueValidator
@@ -13,6 +14,12 @@ class OrderQuerySet(models.QuerySet):
     def with_available_restaurants(self):
         from .models import RestaurantMenuItem, Restaurant
         from .utils import fetch_coordinates, calculate_distance
+        
+        @lru_cache(maxsize=None)
+        def get_cached_coords(address):
+            if not address:
+                return None
+            return fetch_coordinates(address)
         
         menu_items = RestaurantMenuItem.objects.filter(availability=True).select_related('restaurant')
         
@@ -50,7 +57,7 @@ class OrderQuerySet(models.QuerySet):
                 order.available_restaurants = []
                 continue
             
-            order_coords = fetch_coordinates(order.address)
+            order_coords = get_cached_coords(order.address)
             
             restaurants_with_distance = []
             for rid in common_restaurant_ids:
@@ -58,7 +65,7 @@ class OrderQuerySet(models.QuerySet):
                 if not restaurant:
                     continue
                 
-                restaurant_coords = fetch_coordinates(restaurant.address)
+                restaurant_coords = get_cached_coords(restaurant.address)
                 distance = calculate_distance(order_coords, restaurant_coords)
                 
                 restaurants_with_distance.append({

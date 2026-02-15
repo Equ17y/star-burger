@@ -110,7 +110,8 @@ celerybeat.pid
 
 # Environments
 .env
-.venv
+.myenv/
+*.pyc
 env/
 venv/
 ENV/
@@ -142,3 +143,5 @@ dmypy.json
 cython_debug/
 
 .parcel-cache/
+
+staticfiles/
