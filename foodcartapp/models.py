@@ -13,7 +13,7 @@ class OrderQuerySet(models.QuerySet):
         
     def with_available_restaurants(self):
         from .models import RestaurantMenuItem, Restaurant
-        from .utils import fetch_coordinates, calculate_distance
+        from geocoding.utils import fetch_coordinates, calculate_distance
         
         @lru_cache(maxsize=None)
         def get_cached_coords(address):
