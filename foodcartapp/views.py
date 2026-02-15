@@ -93,16 +93,16 @@ def register_order(request):
                 phonenumber=serializer.validated_data['phonenumber'],
                 address=serializer.validated_data['address']
             )
-            items = []
+            order_items = []
             for item in serializer.validated_data['products']:
                 product = product_map[item['product']]
-                items.append(OrderItem(
+                order_items.append(OrderItem(
                     order=order,
                     product=product,
                     quantity=item['quantity'],
                     price=product.price
                 ))
-            OrderItem.objects.bulk_create(items)
+            OrderItem.objects.bulk_create(order_items)
             
             # 0 / 0  # ← если раскомментировать — всё откатится
              
