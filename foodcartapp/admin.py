@@ -78,10 +78,9 @@ class OrderAdmin(admin.ModelAdmin):
             'fields': ('firstname', 'lastname', 'phonenumber', 'address')
         }),
         ('Заказ', {
-            'fields': ('status','payment_method', 'comment')
+            'fields': ('status','payment_method', 'restaurant', 'comment')
         }),
         ('Временные метки', {
-            # 👇 registrated_at — ПЕРВЫМ!
             'fields': ('registrated_at', 'called_at', 'delivered_at'),
         }),
     )

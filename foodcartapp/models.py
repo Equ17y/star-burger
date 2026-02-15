@@ -10,6 +10,44 @@ class OrderQuerySet(models.QuerySet):
             total_price=Sum(F('items__price') * F('items__quantity'))
         )
         
+    def with_available_restaurants(self):
+        from .models import RestaurantMenuItem, Restaurant
+        
+        # Получаем все доступные пункты меню
+        menu_items = RestaurantMenuItem.objects.filter(availability=True)
+        
+        # Создаём словарь: product_id -> set(restaurant_ids)
+        product_to_restaurants = {}
+        for item in menu_items:
+            product_to_restaurants.setdefault(item.product_id, set()).add(item.restaurant_id)
+        
+        # Обрабатываем каждый заказ
+        orders = list(self.prefetch_related('items'))
+        for order in orders:
+            product_ids = {item.product_id for item in order.items.all()}
+            
+            if not product_ids:
+                order.available_restaurants = []
+                continue
+            
+            # Находим пересечение ресторанов для всех продуктов заказа
+            available_restaurant_ids = None
+            for product_id in product_ids:
+                restaurant_ids = product_to_restaurants.get(product_id, set())
+                if available_restaurant_ids is None:
+                    available_restaurant_ids = restaurant_ids.copy()
+                else:
+                    available_restaurant_ids &= restaurant_ids
+                if not available_restaurant_ids:
+                    break
+            
+            # Получаем объекты ресторанов
+            order.available_restaurants = list(
+                Restaurant.objects.filter(id__in=available_restaurant_ids)
+            ) if available_restaurant_ids else []
+        
+        return orders 
+        
         
 ORDER_STATUSES = [
     ('UNPROCESSED', 'Необработанный'),
@@ -31,6 +69,16 @@ class Order(models.Model):
     lastname = models.CharField('Фамилия', max_length=50)
     phonenumber = PhoneNumberField('Мобильный номер', db_index=True)
     comment = models.TextField('Комментарий', blank=True)
+    
+    restaurant = models.ForeignKey(
+        'Restaurant',
+        verbose_name='Ресторан',
+        related_name='orders',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    
     
     payment_method = models.CharField(
         'Способ оплаты',

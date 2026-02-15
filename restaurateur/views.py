@@ -99,11 +99,31 @@ def view_orders(request):
         )
     )
     
-    # print(">>> DEBUG: Количество заказов =", len(orders))
-    # for o in orders:
-    #     print(f"    Заказ {o.id}: {o.firstname} {o.lastname}")
+    unprocessed_orders = []
+    other_orders = []
+    
+    for order in orders:
+        if order.status == 'UNPROCESSED':
+            unprocessed_orders.append(order)
+        else:
+            other_orders.append(order)
+    
+    if unprocessed_orders:
+        unprocessed_ids = [order.id for order in unprocessed_orders]
+        
+        orders_with_restaurants = Order.objects.filter(
+            id__in=unprocessed_ids
+        ).with_available_restaurants()
+        
+        restaurant_dict = {order.id: order for order in orders_with_restaurants}
+        
+        for i, order in enumerate(unprocessed_orders):
+            if order.id in restaurant_dict:
+                unprocessed_orders[i] = restaurant_dict[order.id]
+    
+    all_orders = unprocessed_orders + other_orders
     
     
     return render(request, template_name='order_items.html', context={
-        'order_items': orders,
+        'order_items': all_orders,
     })
