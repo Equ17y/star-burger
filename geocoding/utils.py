@@ -1,6 +1,7 @@
 import logging
 from geopy.distance import geodesic
 from geopy.geocoders import Yandex
+from geopy.exc import GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable, GeocoderQueryError
 from django.conf import settings
 from geocoding.models import Location
 
@@ -27,8 +28,8 @@ def fetch_coordinates(address):
             location.lon = coordinates[1]
             location.save()
             return coordinates
-    except Exception as e:
-        logger.exception(f"Geocoder error for address: {address}")
+    except (GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable, GeocoderQueryError) as e:
+        logger.exception(f"Geocoder error for address '{address}': {e}")
     return None
 
 def calculate_distance(coord1, coord2):
