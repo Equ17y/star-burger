@@ -3,8 +3,6 @@ from django.db.models import Sum, F
 from django.db import models
 from django.core.validators import MinValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
-from geocoding.utils import fetch_coordinates, calculate_distance
-from geocoding.models import Location
 
 
 class OrderQuerySet(models.QuerySet):
@@ -14,102 +12,51 @@ class OrderQuerySet(models.QuerySet):
         )
         
     def with_available_restaurants(self):
-        from .models import RestaurantMenuItem, Restaurant 
+        """
+        Возвращает заказы с атрибутом available_restaurant_ids.
+        НЕ работает с координатами - только находит рестораны, 
+        которые могут выполнить заказ (пересечение меню).
+        """
+        from .models import RestaurantMenuItem
         
-        menu_items = RestaurantMenuItem.objects.filter(availability=True).select_related('restaurant')
+        # Получаем маппинг: product_id → set(restaurant_ids)
+        menu_items = (
+            RestaurantMenuItem.objects
+            .filter(availability=True)
+            .values('product_id', 'restaurant_id')
+        )
         
         product_to_restaurants = {}
         for item in menu_items:
-            product_to_restaurants.setdefault(item.product_id, set()).add(item.restaurant_id)
-        
-        all_restaurant_ids = set()
-        for restaurant_ids in product_to_restaurants.values():
-            all_restaurant_ids.update(restaurant_ids)
-            
-        restaurants = Restaurant.objects.filter(id__in=all_restaurant_ids)
-        restaurants_dict = {r.id: r for r in restaurants}
+            product_to_restaurants.setdefault(
+                item['product_id'], set()
+            ).add(item['restaurant_id'])
         
         orders = list(self.prefetch_related('items'))
         
-        addresses = set()
         for order in orders:
-            if order.address:
-                addresses.add(order.address)
-        for restaurant in restaurants:
-            if restaurant.address:
-                addresses.add(restaurant.address)
-        
-        locations = Location.objects.filter(address__in=addresses)
-        coords_cache = {}
-        for loc in locations:
-            if loc.lat is not None and loc.lon is not None:
-                coords_cache[loc.address] = (loc.lat, loc.lon)
-                
-        missing_addresses = addresses - set(coords_cache.keys())
-        for address in missing_addresses:
-            coords = fetch_coordinates(address)
-            if coords:
-                coords_cache[address] = coords
-                Location.objects.get_or_create(
-                    address=address,
-                    defaults={'lat': coords[0], 'lon': coords[1]}
-                )                
-        orders_with_coords_error = []
-        for order in orders:
-            product_ids = {item.product_id for item in order.items.all()}    
-                        
+            product_ids = {item.product_id for item in order.items.all()}
+            
             if not product_ids:
-                order.available_restaurants = []
+                order.available_restaurant_ids = []
                 continue
             
-            common_restaurant_ids = None
-            for product_id in product_ids:
-                restaurant_ids = product_to_restaurants.get(product_id, set())
-                if common_restaurant_ids is None:
-                    common_restaurant_ids = restaurant_ids.copy()
+            # Пересечение множеств: рестораны, у которых есть ВСЕ товары
+            common_ids = None
+            for pid in product_ids:
+                rids = product_to_restaurants.get(pid, set())
+                if common_ids is None:
+                    common_ids = rids.copy()
                 else:
-                    common_restaurant_ids &= restaurant_ids
-                if not common_restaurant_ids:
+                    common_ids &= rids
+                if not common_ids:
                     break
-                
-            if not common_restaurant_ids:
-                order.available_restaurants = []
-                continue
             
-            order_coords = coords_cache.get(order.address)
-            
-            if order.address and order_coords is None:
-                order.coords_error = True
-                orders_with_coords_error.append(order.id)
-                order.available_restaurants = []
-            
-            restaurants_with_distance = []
-            
-            if order_coords:
-                for restaurant_id in common_restaurant_ids:
-                    restaurant = restaurants_dict.get(restaurant_id)
-                    if not restaurant:
-                        continue
-                
-                    restaurant_coords = coords_cache.get(restaurant.address)
-                    distance = calculate_distance(order_coords, restaurant_coords)
-                    
-                    restaurants_with_distance.append({
-                        'restaurant': restaurant,
-                        'distance': distance
-                    })
-                
-            order.available_restaurants = sorted(
-                restaurants_with_distance,
-                key=lambda x: x['distance'] or float('inf')
-            )
-            
-        if orders_with_coords_error:
-            self.model.objects.filter(id__in=orders_with_coords_error).update(coords_error=True)
+            order.available_restaurant_ids = list(common_ids) if common_ids else []
         
-        return orders 
-        
-        
+        return orders
+
+
 ORDER_STATUSES = [
     ('UNPROCESSED', 'Необработанный'),
     ('PROCESSING', 'Готовится'),
@@ -139,7 +86,6 @@ class Order(models.Model):
         null=True,
         blank=True
     )
-    
     
     payment_method = models.CharField(
         'Способ оплаты',
@@ -172,7 +118,6 @@ class Order(models.Model):
         verbose_name = 'заказ'
         verbose_name_plural = 'заказы'
                  
-    
     def __str__(self):
         return f"{self.firstname} {self.lastname}, {self.phonenumber}"   
 

@@ -9,6 +9,12 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
 from foodcartapp.models import Product, Restaurant, Order, OrderItem
+from .utils import (
+    get_restaurants_by_ids,
+    fetch_coordinates_for_addresses,
+    calculate_distance_for_order,
+    mark_coords_errors,
+)
 
 
 class Login(forms.Form):
@@ -92,6 +98,7 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
+    # 1. Получаем заказы (без координат)
     orders = Order.objects.exclude(status='COMPLETED').with_total_price().prefetch_related(
         models.Prefetch(
             'items',
@@ -99,6 +106,7 @@ def view_orders(request):
         )
     )
     
+    # 2. Разделяем на необработанные и остальные
     unprocessed_orders = []
     other_orders = []
     
@@ -108,21 +116,71 @@ def view_orders(request):
         else:
             other_orders.append(order)
     
+    # 3. Для необработанных: находим доступные рестораны и считаем расстояния
     if unprocessed_orders:
         unprocessed_ids = [order.id for order in unprocessed_orders]
         
+        # Получаем заказы с available_restaurant_ids (только ID, без координат!)
         orders_with_restaurants = Order.objects.filter(
             id__in=unprocessed_ids
         ).with_available_restaurants()
         
-        orders_by_id = {order.id: order for order in orders_with_restaurants}
+        # Собираем все ID ресторанов для загрузки
+        all_restaurant_ids = set()
+        for order in orders_with_restaurants:
+            all_restaurant_ids.update(order.available_restaurant_ids)
         
+        # Загружаем рестораны одним запросом
+        restaurants = get_restaurants_by_ids(all_restaurant_ids)
+        restaurants_dict = {r.id: r for r in restaurants}
+        
+        # Собираем адреса для геокодинга
+        addresses = set()
+        for order in orders_with_restaurants:
+            if order.address:
+                addresses.add(order.address)
+        for r in restaurants:
+            if r.address:
+                addresses.add(r.address)
+        
+        # Получаем координаты (атомарная функция)
+        coords_cache = fetch_coordinates_for_addresses(addresses)
+        
+        # Считаем расстояния для каждого заказа
+        error_order_ids = []
+        
+        for order in orders_with_restaurants:
+            # Получаем объекты ресторанов для этого заказа
+            order_restaurants = [
+                restaurants_dict[rid] 
+                for rid in order.available_restaurant_ids 
+                if rid in restaurants_dict
+            ]
+            
+            # Атомарная функция: считает расстояния
+            distances, has_error = calculate_distance_for_order(
+                order, order_restaurants, coords_cache
+            )
+            
+            if has_error:
+                order.coords_error = True
+                order.available_restaurants = []
+                error_order_ids.append(order.id)
+            else:
+                order.coords_error = False
+                order.available_restaurants = distances
+        
+        # Сохраняем ошибки координат в БД
+        mark_coords_errors(error_order_ids)
+        
+        # Обновляем unprocessed_orders на обработанные версии
+        orders_by_id = {order.id: order for order in orders_with_restaurants}
         for index, order in enumerate(unprocessed_orders):
             if order.id in orders_by_id:
                 unprocessed_orders[index] = orders_by_id[order.id]
     
+    # 4. Объединяем и возвращаем
     all_orders = unprocessed_orders + other_orders
-    
     
     return render(request, template_name='order_items.html', context={
         'order_items': all_orders,
