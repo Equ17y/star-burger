@@ -18,6 +18,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import render
+from star_burger import views
 
 from . import settings
 
@@ -26,6 +27,7 @@ urlpatterns = [
     path('', render, kwargs={'template_name': 'index.html'}, name='start_page'),
     path('api/', include('foodcartapp.urls')),
     path('manager/', include('restaurateur.urls')),
+    path('test-error/', views.test_error, name='test_error'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:

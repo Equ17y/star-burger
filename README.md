@@ -151,6 +151,21 @@ Parcel будет следить за файлами в каталоге `bundle
 - `ALLOWED_HOSTS` — [см. документацию Django](https://docs.djangoproject.com/en/5.2/ref/settings/#allowed-hosts)
 - `YANDEX_GEOCODER_API_KEY` — API-ключ для Яндекс.Геокодера. Необходим для работы геолокации (определения координат адресов и расчета расстояний до ресторанов).
 
+## Логирование ошибок (Rollbar)
+Проект настроен для автоматической отправки ошибок в Rollbar.
+
+### Настройка
+1. Зарегистрируйтесь на [rollbar.com](https://rollbar.com)
+2. Создайте Django-проект и получите токен
+3. Добавьте в `.env`:
+   ```bash
+   ROLLBAR_ACCESS_TOKEN=ваш_токен
+   ROLLBAR_ENVIRONMENT=production  # или name-dev для разработки
+   ```
+4. Установите зависимость: `pip install rollbar`
+5. Перезапустите сервер
+
+
 ## Цели проекта
 
 Код написан в учебных целях — это урок в курсе по Python и веб-разработке на сайте [Devman](https://dvmn.org). За основу был взят код проекта [FoodCart](https://github.com/Saibharath79/FoodCart).
