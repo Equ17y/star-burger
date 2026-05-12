@@ -166,6 +166,17 @@ Parcel будет следить за файлами в каталоге `bundle
 5. Перезапустите сервер
 
 
+### Настройка базы данных PostgreSQL
+По умолчанию проект использует SQLite. Чтобы перейти на PostgreSQL:
+
+1. Установите PostgreSQL и создайте базу данных:
+   ```sql
+   CREATE DATABASE starburger_dev;
+   CREATE USER staruser WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE starburger_dev TO staruser;
+   GRANT ALL ON SCHEMA public TO staruser;
+   ```
+
 ## Цели проекта
 
 Код написан в учебных целях — это урок в курсе по Python и веб-разработке на сайте [Devman](https://dvmn.org). За основу был взят код проекта [FoodCart](https://github.com/Saibharath79/FoodCart).
