@@ -177,6 +177,37 @@ Parcel будет следить за файлами в каталоге `bundle
    GRANT ALL ON SCHEMA public TO staruser;
    ```
 
+
+## Быстрое обновление кода на сервере (деплой)
+
+После внесения изменений в код, чтобы обновить сайт на сервере:
+
+1. **Закоммитьте и отправьте изменения на GitHub:**
+   ```bash
+   git add .
+   git commit -m "описание изменений"
+   git push
+   ```
+
+2. Подключение к серверу по SSH
+   ```bash
+   ssh root@startburger.pro
+   или по IP: ssh root@80.249.144.77
+   ```
+
+3. Запуск скрипта деплоя:
+   ```bash
+   ~/deploy_star_burger.sh
+   ```
+
+### Что сделает скрипт автоматически:
+- Обновит код из репозитория (git reset --hard)
+- Установит Python-зависимости (pip install -r requirements.txt)
+- Установит Node.js-зависимости и соберёт фронтенд (npm install + parcel build)
+- Применит миграции и соберёт статику (manage.py migrate + collectstatic)
+- Перезапустит Gunicorn (systemctl restart starburger.service)
+- Сообщит об успехе или остановится при ошибке
+
 ## Цели проекта
 
 Код написан в учебных целях — это урок в курсе по Python и веб-разработке на сайте [Devman](https://dvmn.org). За основу был взят код проекта [FoodCart](https://github.com/Saibharath79/FoodCart).
