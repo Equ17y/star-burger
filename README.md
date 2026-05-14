@@ -1,5 +1,7 @@
 # Сайт доставки еды Star Burger
 
+**Работающий сайт:** [https://starburger.pro](https://starburger.pro)
+
 Это сайт сети ресторанов Star Burger. Здесь можно заказать превосходные бургеры с доставкой на дом.
 
 ![скриншот сайта](https://dvmn.org/filer/canonical/1594651635/686/)
@@ -191,7 +193,7 @@ Parcel будет следить за файлами в каталоге `bundle
 
 2. Подключение к серверу по SSH
    ```bash
-   ssh root@startburger.pro
+   ssh root@starburger.pro
    или по IP: ssh root@80.249.144.77
    ```
 
