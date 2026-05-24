@@ -2,14 +2,10 @@ import os
 
 import dj_database_url
 
-# from environs import Env
 from django.urls import path
 from dotenv import load_dotenv
 load_dotenv()
 
-
-# env = Env()
-# env.read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
@@ -19,9 +15,9 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-0if40nf4nf93n4')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 YANDEX_GEOCODER_API_KEY = os.getenv('YANDEX_GEOCODER_API_KEY')
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,*').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
-ROLLBAR_ACCESS_TOKEN = os.getenv('ROLLBAR_ACCESS_TOKEN')
+ROLLBAR_ACCESS_TOKEN = os.getenv('ROLLBAR_ACCESS_TOKEN', '')
 ROLLBAR_ENVIRONMENT = os.getenv('ROLLBAR_ENVIRONMENT', 'development')
 
 
