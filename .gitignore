@@ -146,3 +146,4 @@ cython_debug/
 
 staticfiles/data_fixtures.json
 *.sqlite3*
+data_fixtures.json
