@@ -1,0 +1,15 @@
+services:
+  backend:
+    volumes:
+      - .:/app
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             python -m gunicorn --bind 0.0.0.0:8000 --reload star_burger.wsgi:application"
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - DATABASE_URL=sqlite:////app/db.sqlite3
+
+  frontend:
