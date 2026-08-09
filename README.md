@@ -210,6 +210,27 @@ Parcel будет следить за файлами в каталоге `bundle
 - Перезапустит Gunicorn (systemctl restart starburger.service)
 - Сообщит об успехе или остановится при ошибке
 
+## 🐳 Запуск через Docker (рекомендуемый способ)
+
+### Предварительные требования
+1. Установлен [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+2. Docker Desktop запущен
+
+### Локальная разработка
+```bash
+1. Перейди в папку проекта
+cd star-burger
+
+2. Создай .env, если нужно переопределить настройки
+По умолчанию проект использует безопасные дефолты для локалки
+
+3. Собери и запусти все контейнеры (бэкенд, фронтенд, PostgreSQL)
+docker compose up --build
+
+4. Сайт доступен: http://localhost:8000
+5. Остановить контейнеры: docker compose down
+```
+
 ## Цели проекта
 
 Код написан в учебных целях — это урок в курсе по Python и веб-разработке на сайте [Devman](https://dvmn.org). За основу был взят код проекта [FoodCart](https://github.com/Saibharath79/FoodCart).
