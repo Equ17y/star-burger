@@ -1,0 +1,13 @@
+FROM node:16-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY bundles-src ./bundles-src
+COPY assets ./assets
+
+RUN ./node_modules/.bin/parcel build bundles-src/index.js --dist-dir /app/bundles --public-url "/static/"
+
+CMD ["./node_modules/.bin/parcel", "watch", "bundles-src/index.js", "--dist-dir", "/app/bundles", "--public-url", "/static/"]
