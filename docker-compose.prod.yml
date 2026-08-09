@@ -2,22 +2,15 @@ services:
   backend:
     environment:
       - DEBUG=False
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-starburger.pro,www.starburger.pro}
+    # В продакшене порт пробрасывается через Nginx, но оставим для проверки
+    ports:
+      - "8000:8000"
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
              gunicorn --bind 0.0.0.0:8000 --workers 3 star_burger.wsgi:application"
-    volumes:
-      - media_vol:/app/media
-      - pg_data:/var/lib/postgresql/data
-      - bundles_vol:/app/bundles
 
   frontend:
-    volumes:
-      - bundles_vol:/app/bundles
-    command: ["./node_modules/.bin/parcel", "build", "bundles-src/index.js", "--dist-dir", "/app/bundles", "--public-url", "/static/", "--no-optimize"]
-
-volumes:
-  media_vol:
-  pg_data:
-  bundles_vol:
+    command: ["./node_modules/.bin/parcel", "build", "bundles-src/index.js", "--dist-dir", "/app/bundles", "--public-url", "/static/"]
+    restart: "no"
