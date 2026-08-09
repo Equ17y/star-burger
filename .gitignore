@@ -144,4 +144,5 @@ cython_debug/
 
 .parcel-cache/
 
-staticfiles/
+staticfiles/data_fixtures.json
+*.sqlite3*
