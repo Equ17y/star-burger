@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  backend:
+    environment:
+      - DEBUG=False
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 3 star_burger.wsgi:application"
+    volumes:
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+      - ./bundles:/app/bundles
+
+frontend:
+  volumes:
+    - ./bundles:/app/bundles
+  command: ["./node_modules/.bin/parcel", "build", "bundles-src/index.js", "--dist-dir", "/app/bundles", "--public-url", "/static/", "--no-optimize"]
