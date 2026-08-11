@@ -204,13 +204,10 @@ Parcel будет следить за файлами в каталоге `bundle
 
 ### Что сделает скрипт автоматически:
 - Обновит код из репозитория (git reset --hard)
-- Установит Python-зависимости (pip install -r requirements.txt)
-- Установит Node.js-зависимости и соберёт фронтенд (npm install + parcel build)
-- Применит миграции и соберёт статику (manage.py migrate + collectstatic)
-- Перезапустит Gunicorn (systemctl restart starburger.service)
-- Сообщит об успехе или остановится при ошибке
+- Пересоберёт Docker-образы и запустит контейнеры (docker compose up -d --build)
+- Внутри контейнера запустит миграции и сборку статики
 
-## 🐳 Запуск через Docker (рекомендуемый способ)
+## 🐳 Запуск через Docker
 
 ### Предварительные требования
 1. Установлен [Docker Desktop](https://www.docker.com/products/docker-desktop/)
@@ -230,6 +227,28 @@ docker compose up --build
 4. Сайт доступен: http://localhost:8000
 5. Остановить контейнеры: docker compose down
 ```
+
+### Запуск на сервере
+
+1. Подключитесь к серверу по SSH:
+```bash
+   ssh root@starburger.pro
+```
+2. Перейдите в папку проекта (или склонируйте, если первый раз):
+```bash
+   cd /root/projects/star-burger
+```
+3. Запустите проект в режиме продакшена:
+```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+4. Сайт будет доступен по адресу `http://<IP-адрес-сервера>:8000`
+5. Для последующих обновлений просто используйте скрипт 
+`~/deploy_star_burger.sh.`
+
+### Сохранение данных
+- База данных (PostgreSQL) и файлы из папки `media/` хранятся в Docker Volumes (`pg_data, media_vol`).
+- Это гарантирует, что данные не пропадут при перезапуске или пересоздании контейнеров (`docker compose down`).
 
 ## Цели проекта
 
